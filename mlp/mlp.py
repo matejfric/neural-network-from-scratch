@@ -4,6 +4,8 @@ from pydantic import PositiveFloat, PositiveInt
 from .layers import Layer, Input, Dense
 from .activations import Activation, Linear
 from .losses import Loss
+from .constants import SEED
+from .optimizers import Optimizer
 
 
 class MLPLayersBuilder:
@@ -44,20 +46,25 @@ class MLP:
     def __init__(self,
                  layers: list[Layer],
                  loss_function: Loss,
+                 optimizer: Optimizer = Optimizer.SGD,
                  n_epochs: PositiveInt = 10,
                  batch_size: int = 32,
                  learning_rate: PositiveFloat = 0.01,
-                 momentum: PositiveFloat = 1.0,  # 1.0 has no effect
+                 momentum: PositiveFloat = 0.0,  # 0.0 has no effect
                  regularization: PositiveFloat = 1e-3,
-                 print_frequency: PositiveInt = 1):
+                 print_frequency: PositiveInt = 1,
+                 shuffle: bool = False):
         self.layers = layers
         self.loss_function = loss_function
+        self.optimizer = optimizer
         self.n_epochs = n_epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.momentum = momentum
         self.regularization = regularization
         self.print_frequency = print_frequency
+        self.shuffle = shuffle
+        self.rng = np.random.default_rng(SEED)
 
     def forward(self, inputs):
         x = inputs
@@ -102,13 +109,20 @@ class MLP:
         # GRADIENT DESCENT - UPDATE WEIGHTS AND BIASES
         for layer in self.layers[1:]:
             # Except input layer
-            layer.apply_gradients(self.regularization,
+            layer.apply_gradients(self.optimizer,
+                                  self.regularization,
                                   self.learning_rate,
                                   self.momentum)
 
     def fit(self, x: np.ndarray, y: np.ndarray):
         n_samples = x.shape[0]
         for epoch in range(self.n_epochs):
+            if self.shuffle:
+                # Shuffle data at the beginning of each epoch
+                indices = self.rng.permutation(n_samples)
+                x = x[indices]
+                y = y[indices]
+
             for batch_start in range(0, n_samples, self.batch_size):
                 batch_end = min(batch_start + self.batch_size, n_samples)
                 x_batch = x[batch_start:batch_end]
