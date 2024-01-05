@@ -1,5 +1,5 @@
 import numpy as np
-from pydantic import PositiveInt
+from pydantic import PositiveFloat, PositiveInt
 from abc import ABC, abstractmethod
 
 from .activations import Activation
@@ -63,9 +63,6 @@ class Input(Layer):
         super().__init__(n_neurons)
 
     def forward(self, inputs):
-        # TODO remove unnecesarry fields, so far only _activations (outputs) are needed
-        self._inputs = inputs
-        self._weighted_inputs = inputs
         self._activations = inputs
         return inputs
 
@@ -74,21 +71,21 @@ class Input(Layer):
 
 
 class Dense(Layer):
-    def __init__(self, n_neurons, activation: Activation):
+    def __init__(self, n_neurons: PositiveInt, activation: Activation):
         super().__init__(n_neurons)
         self.activation = activation
         self._weights = None
         self._biases = None
         # self.output = None
 
-    def set_input(self, n_inputs):
+    def set_input(self, n_inputs: PositiveInt):
         self._weights = 0.10 * \
             self.rng.standard_normal((n_inputs, self.n_neurons))
         self._biases = np.zeros((1, self.n_neurons))
         self._weight_velocities = np.zeros_like(self._weights)
         self._bias_velocities = np.zeros_like(self._biases)
 
-    def forward(self, inputs):
+    def forward(self, inputs: np.ndarray):
         self._inputs = inputs
         self._weighted_inputs = np.dot(inputs, self._weights) + self._biases
         self._activations = self.activation.apply(self._weighted_inputs)
@@ -96,7 +93,10 @@ class Dense(Layer):
         # self.output = self.activation.activate(self.output)
         return self._activations  # self.output
 
-    def apply_gradients(self, regularization, learning_rate, momentum):
+    def apply_gradients(self,
+                        regularization: PositiveFloat,
+                        learning_rate: PositiveFloat,
+                        momentum: PositiveFloat):
         # Simplified: layer.weights -= self.LEARNING_RATE * pd_error_wrt_weight
 
         # weight_decay = (1 - regularization * learning_rate)
