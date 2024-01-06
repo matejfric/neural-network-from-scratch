@@ -1,4 +1,5 @@
 import numpy as np
+from typing import Optional
 from pydantic import PositiveFloat, PositiveInt
 
 from .layers import Layer, Input, Dense
@@ -51,7 +52,6 @@ class MLP:
                  batch_size: int = 32,
                  learning_rate: PositiveFloat = 0.01,
                  momentum: PositiveFloat = 0.0,  # 0.0 has no effect
-                 regularization: PositiveFloat = 1e-3,
                  print_frequency: PositiveInt = 1,
                  shuffle: bool = False):
         self.layers = layers
@@ -61,19 +61,18 @@ class MLP:
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.momentum = momentum
-        self.regularization = regularization
         self.print_frequency = print_frequency
         self.shuffle = shuffle
         self.rng = np.random.default_rng(SEED)
 
-    def forward(self, inputs):
+    def _forward(self, inputs):
         x = inputs
         for layer in self.layers:
             # Propagate the inputs through the network
             x = layer.forward(x)
         return x
 
-    def backpropagate(self, expected_outputs):
+    def _backpropagate(self, expected_outputs):
         """
         Batch size agnostic
         """
@@ -110,11 +109,14 @@ class MLP:
         for layer in self.layers[1:]:
             # Except input layer
             layer.apply_gradients(self.optimizer,
-                                  self.regularization,
                                   self.learning_rate,
                                   self.momentum)
 
-    def fit(self, x: np.ndarray, y: np.ndarray):
+    def fit(self,
+            x: np.ndarray,
+            y: np.ndarray,
+            x_val: Optional[np.ndarray] = None,
+            y_val: Optional[np.ndarray] = None):
         n_samples = x.shape[0]
         for epoch in range(self.n_epochs):
             if self.shuffle:
@@ -129,14 +131,31 @@ class MLP:
                 y_batch = y[batch_start:batch_end]
 
                 # Forward pass
-                y_pred = self.forward(x_batch)
+                y_pred = self._forward(x_batch)
 
                 # Backpropagation
-                self.backpropagate(y_batch)
+                self._backpropagate(y_batch)
 
             if epoch % self.print_frequency == 0:
-                loss = self.loss_function.apply(y_pred, y)
+                if x_val is not None and y_val is not None:
+                    y_pred = self.predict(x_val)
+                    loss = self.loss_function.apply(y_pred, y_val)
+                else:
+                    y_pred = self.predict(x)
+                    loss = self.loss_function.apply(y_pred, y)
                 print(f'Epoch {epoch+1}/{self.n_epochs} | Loss: {loss}')
+
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        n_samples = x.shape[0]
+        predictions = []
+        for batch_start in range(0, n_samples, self.batch_size):
+            batch_end = min(batch_start + self.batch_size, n_samples)
+            x_batch = x[batch_start:batch_end]
+
+            # Forward pass
+            y_pred = self._forward(x_batch)
+            predictions.append(y_pred)
+        return np.concatenate(predictions, axis=0)
 
     def _update_hidden_gradients(self,
                                  layer_index: PositiveInt,
