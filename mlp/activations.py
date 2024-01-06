@@ -36,14 +36,14 @@ class Softmax(Activation):
         return exp_inputs / np.sum(exp_inputs, axis=-1, keepdims=True)
 
     def apply_derivative(self, inputs: np.ndarray):
-        # https://stackoverflow.com/a/40576872
-        # https://medium.com/intuitionmath/how-to-implement-the-softmax-derivative-independently-from-any-loss-function-ae6d44363a9d
-        # 'inputs' has shape (1,n)
-        # Reshape the 1-d 'inputs' to 2-d so that np.dot 
-        # will do the matrix multiplication
-        s = inputs.reshape((-1,1))
-        jacobian = np.diagflat(s) - np.dot(s, s.T) # (n, n) matrix
-        return jacobian
+        # https://mattpetersen.github.io/softmax-with-cross-entropy
+        # 'inputs' has shape (batch_size, output.shape[1])
+        # compute batch jacobian (assuming OHE vector):
+        # --> np.diag(np.diagflat(s) - np.outer(s, s)).reshape(s.shape)
+        # jacobian:
+        # np.diagflat(s) - np.outer(s, s)
+        softmax_output = self.apply(inputs)
+        return softmax_output * (1 - softmax_output)
 
 
 class Linear(Activation):
