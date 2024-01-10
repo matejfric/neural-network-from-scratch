@@ -11,7 +11,16 @@ from .optimizers import Optimizer
 
 class MLPLayersBuilder:
     """
-    Builder for MLP
+    Builder for MLP.
+
+    Example:
+    ```
+    layers = MLPLayersBuilder()\
+        .add_input(2)\
+        .add_dense(5, Sigmoid())\
+        .add_dense(1, Sigmoid())\
+        .build()
+    ```
     """
 
     def __init__(self):
@@ -44,6 +53,8 @@ class MLPLayersBuilder:
 
 
 class MLP:
+    """Multi-Layer Perceptron (MLP)"""
+
     def __init__(self,
                  layers: list[Layer],
                  loss_function: Loss,
@@ -74,7 +85,7 @@ class MLP:
 
     def _backpropagate(self, expected_outputs):
         """
-        Batch size agnostic
+        Backward propagation of errors. (Batch size agnostic.)
         """
 
         # OUTPUT LAYER ERROR
@@ -95,19 +106,21 @@ class MLP:
         # average over batch dimension (data points)
         output_layer.gradient_w = np.mean(output_pd, axis=0)
         # ∂(cost) / ∂(biases)
-        # shape (1, n_neurons); may be transposed to make it a column vector
+        # shape (1, n_neurons);
         output_layer.gradient_b = 1 * \
             np.mean(output_delta, axis=0)[np.newaxis, :]
 
         # BACKPROPAGATION THROUGH HIDDEN LAYERS
         layer_delta = output_delta
-        # Loop over hidden layers (in reversed order)
+        # Loop over hidden layers, in reversed order,
+        # propagating the output layer error.
         for hidden_layer_index in range(len(self.layers) - 2, 0, -1):
-            layer_delta = self._update_hidden_gradients(hidden_layer_index, layer_delta)
+            layer_delta = self._update_hidden_gradients(
+                hidden_layer_index, layer_delta)
 
         # GRADIENT DESCENT - UPDATE WEIGHTS AND BIASES
         for layer in self.layers[1:]:
-            # Except input layer
+            # Except input layer (no parameters to be updated)
             layer.apply_gradients(self.optimizer,
                                   self.learning_rate,
                                   self.momentum)
@@ -160,6 +173,8 @@ class MLP:
     def _update_hidden_gradients(self,
                                  layer_index: PositiveInt,
                                  next_layer_delta: np.ndarray):
+        # Adapted from https://brilliant.org/wiki/backpropagation/
+
         prev_layer = self.layers[layer_index - 1]
         hidden_layer = self.layers[layer_index]
         next_layer = self.layers[layer_index + 1]

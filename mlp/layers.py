@@ -24,7 +24,7 @@ class Layer(ABC):
         self._bias_m = None  # 1st stat. moment cache
         self._weight_v = None  # 2nd stat. moment cache
         self._bias_v = None  # 2nd stat. moment cache
-        self._t = 0  # time for Adam
+        self._t = 0  # time parameter for Adam optimizer
 
     @property
     def gradient_w(self):
@@ -84,7 +84,7 @@ class Dense(Layer):
         self._weight_v = np.zeros_like(self._weights)  # 2nd stat. moment cache
         self._bias_v = np.zeros_like(self._biases)  # 2nd stat. moment cache
 
-        # For RMSProp
+        # Optionally for RMSProp:
         # self._weight_v = np.ones_like(self._weights)
         # self._bias_v = np.ones_like(self._biases)
 
@@ -106,7 +106,7 @@ class Dense(Layer):
             Optimizer.ADAM: self._adam,
         }
         optimize = optimizer_functions\
-            .get(optimizer, lambda: logging.warning("Invalid optimizer"))
+            .get(optimizer, lambda x, y: logging.warning("Invalid optimizer"))
         optimize(learning_rate, momentum)
 
     def _sgd(self,
